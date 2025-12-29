@@ -285,7 +285,7 @@ function renderState(state){
     // Presenter can offer only if it's their turn and no currentOffered
     offers.forEach(b => {
       const idx = Number(b.dataset.index);
-      b.disabled = !(localRole === 'presenter' && offered === null && phase !== 'placing' && state.turn < 4);
+      b.disabled = !(localRole === 'presenter' && offered === null && state.turn < 4);
     });
 
     // Placer can place only if localRole is placer and currentOffered != null
