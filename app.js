@@ -152,7 +152,7 @@ leaveRoomBtn.addEventListener('click', async () => {
 async function joinRoom(roomId, roleHint = null){
   const rRef = ref(db, `rooms/${roomId}`);
   const snap = await get(rRef);
-  if(!snap.exists()) throw new Error('Room4 not found');
+  if(!snap.exists()) throw new Error('Room not found');
   const room = snap.val();
   // If both slots full and we aren't already in it, refuse
   if(room.presenter && room.placer && room.presenter !== uid && room.placer !== uid){
@@ -188,7 +188,7 @@ async function joinRoom(roomId, roleHint = null){
   roomIdLabel.textContent = roomId;
   presenterLabel.textContent = shortId(room.presenter);
   placerLabel.textContent = shortId(room.placer);
-  localRoleLabel.textContent = `4You: ${localRole}`;
+  localRoleLabel.textContent = `5You: ${localRole}`;
   boardSection.hidden = false;
   attachRoomListener(roomId);
 }
@@ -332,7 +332,10 @@ offers.forEach(b => b.addEventListener('click', async (e) => {
       if(room.presenter !== uid) {
         throw new Error('Not presenter');
       }
-      if(cur.currentOffered !== null) {
+      // normalize currentOffered: treat undefined or nullish as null
+      const curOff = (cur.currentOffered === undefined || cur.currentOffered === null) ? null : cur.currentOffered;
+      // if there's a numeric offered index (0,1,2) then someone already offered
+      if (curOff !== null && typeof curOff === 'number') {
         throw new Error('Already offered');
       }
       if(cur.turn >= 4) {
