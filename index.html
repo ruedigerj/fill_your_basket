@@ -3,24 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Game of Chests</title>
+  <title>Game of Chests — Multiplayer</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main>
-    <h1>Game of Chests</h1>
+    <h1>Game of Chests — Multiplayer</h1>
 
-    <section id="controls">
-      <label for="mode">Mode:</label>
-      <select id="mode">
-        <option value="pass">Pass-and-play (two humans)</option>
-        <option value="ai">Play vs AI (AI is coin-placer)</option>
-      </select>
-      <button id="newGame">New Game</button>
+    <section id="lobby">
+      <div id="auth-status">Signing in...</div>
+
+      <div id="lobby-controls">
+        <label for="roleSelect">Choose role when creating:</label>
+        <select id="roleSelect">
+          <option value="presenter">Presenter (offer baskets)</option>
+          <option value="placer">Placer (put coins)</option>
+        </select>
+
+        <button id="createRoom">Create room</button>
+
+        <div class="join">
+          <input id="roomIdInput" placeholder="Room ID"/>
+          <button id="joinRoom">Join room</button>
+        </div>
+      </div>
+
+      <div id="roomInfo" hidden>
+        <p>Room: <span id="roomId"></span></p>
+        <p>Presenter: <span id="presenterLabel">—</span></p>
+        <p>Placer: <span id="placerLabel">—</span></p>
+        <div id="localRole">You:</div>
+        <button id="leaveRoom">Leave room</button>
+      </div>
     </section>
 
-    <section id="board">
-      <div id="info">Presenter's turn: offer a basket (1–3)</div>
+    <section id="board" hidden>
+      <div id="info">Waiting for both players...</div>
 
       <div id="baskets">
         <div class="basket" data-index="0">
@@ -29,14 +47,12 @@
           <div class="sum" id="sum-0">Sum: 0</div>
           <button class="offer" data-index="0">Offer Basket 1</button>
         </div>
-
         <div class="basket" data-index="1">
           <h3>Basket 2</h3>
           <div class="contents" id="basket-1">(empty)</div>
           <div class="sum" id="sum-1">Sum: 0</div>
           <button class="offer" data-index="1">Offer Basket 2</button>
         </div>
-
         <div class="basket" data-index="2">
           <h3>Basket 3</h3>
           <div class="contents" id="basket-2">(empty)</div>
@@ -70,12 +86,15 @@
 
       <div id="result" hidden>
         <h2 id="result-text"></h2>
-        <button id="newRound">Play Again</button>
+        <button id="newGame">Start new game (reset)</button>
       </div>
     </section>
 
+    <footer>
+      <small>Requires Firebase project config in app.js</small>
+    </footer>
   </main>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
