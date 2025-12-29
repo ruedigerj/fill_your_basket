@@ -152,7 +152,7 @@ leaveRoomBtn.addEventListener('click', async () => {
 async function joinRoom(roomId, roleHint = null){
   const rRef = ref(db, `rooms/${roomId}`);
   const snap = await get(rRef);
-  if(!snap.exists()) throw new Error('Room not found');
+  if(!snap.exists()) throw new Error('Room4 not found');
   const room = snap.val();
   // If both slots full and we aren't already in it, refuse
   if(room.presenter && room.placer && room.presenter !== uid && room.placer !== uid){
