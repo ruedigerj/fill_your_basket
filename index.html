@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Game of Chests</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main>
+    <h1>Game of Chests</h1>
+
+    <section id="controls">
+      <label for="mode">Mode:</label>
+      <select id="mode">
+        <option value="pass">Pass-and-play (two humans)</option>
+        <option value="ai">Play vs AI (AI is coin-placer)</option>
+      </select>
+      <button id="newGame">New Game</button>
+    </section>
+
+    <section id="board">
+      <div id="info">Presenter's turn: offer a basket (1–3)</div>
+
+      <div id="baskets">
+        <div class="basket" data-index="0">
+          <h3>Basket 1</h3>
+          <div class="contents" id="basket-0">(empty)</div>
+          <div class="sum" id="sum-0">Sum: 0</div>
+          <button class="offer" data-index="0">Offer Basket 1</button>
+        </div>
+
+        <div class="basket" data-index="1">
+          <h3>Basket 2</h3>
+          <div class="contents" id="basket-1">(empty)</div>
+          <div class="sum" id="sum-1">Sum: 0</div>
+          <button class="offer" data-index="1">Offer Basket 2</button>
+        </div>
+
+        <div class="basket" data-index="2">
+          <h3>Basket 3</h3>
+          <div class="contents" id="basket-2">(empty)</div>
+          <div class="sum" id="sum-2">Sum: 0</div>
+          <button class="offer" data-index="2">Offer Basket 3</button>
+        </div>
+      </div>
+
+      <div id="coin-area">
+        <div id="coins">
+          <span class="coin available" data-value="1">1</span>
+          <span class="coin available" data-value="2">2</span>
+          <span class="coin available" data-value="3">3</span>
+          <span class="coin available" data-value="4">4</span>
+        </div>
+        <div id="placer-controls">
+          <div id="placer-prompt">Waiting for basket offer...</div>
+          <div id="coin-buttons">
+            <button class="place-coin" data-value="1">Place 1</button>
+            <button class="place-coin" data-value="2">Place 2</button>
+            <button class="place-coin" data-value="3">Place 3</button>
+            <button class="place-coin" data-value="4">Place 4</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="history">
+        <h4>History</h4>
+        <ol id="moves"></ol>
+      </div>
+
+      <div id="result" hidden>
+        <h2 id="result-text"></h2>
+        <button id="newRound">Play Again</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

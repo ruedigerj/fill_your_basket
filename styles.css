@@ -1,0 +1,32 @@
+:root{
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --accent:#2563eb;
+  --muted:#6b7280;
+}
+*{box-sizing:border-box}
+body{
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background:var(--bg);
+  color:#0f172a;
+  margin:0;
+  padding:24px;
+}
+main{max-width:900px;margin:0 auto}
+h1{margin:0 0 12px}
+#controls{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+#board{background:var(--card);padding:16px;border-radius:8px;box-shadow:0 2px 8px rgba(2,6,23,0.06)}
+#baskets{display:flex;gap:12px;margin-bottom:12px}
+.basket{flex:1;padding:12px;border:1px solid #e6edf3;border-radius:8px;text-align:center}
+.contents{min-height:48px;margin:8px 0}
+.offer{background:var(--accent);color:white;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}
+.offer:disabled{opacity:0.5;cursor:default}
+#coin-area{display:flex;gap:24px;align-items:center;margin-bottom:12px}
+#coins .coin{display:inline-block;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;margin-right:8px}
+#coins .coin.available{background:#fff}
+#coins .coin.used{opacity:0.35;text-decoration:line-through}
+#placer-controls{flex:1}
+#coin-buttons button{margin-right:6px;padding:6px 10px;border-radius:6px}
+#coin-buttons button:disabled{opacity:0.5}
+#history{margin-top:8px}
+#result{margin-top:16px;text-align:center}
