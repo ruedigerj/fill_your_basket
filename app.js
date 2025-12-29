@@ -1,5 +1,6 @@
 // Multiplayer Game of Chests using Firebase Realtime Database + Anonymous Auth
-// Put your Firebase config in the firebaseConfig object below.
+// Firebase config below has been filled with the values you provided.
+// Put this file alongside index.html and styles.css and serve as described earlier.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
@@ -10,26 +11,19 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 /*
-  Firebase setup steps (quick):
-  1) Create a Firebase project at https://console.firebase.google.com
-  2) In Build > Realtime Database create a database in test mode or set rules to allow authenticated clients:
-     For quick testing you can use:
-     {
-       "rules": {
-         ".read": "auth != null",
-         ".write": "auth != null"
-       }
-     }
-  3) In Build > Authentication enable "Anonymous" provider.
-  4) In Project Settings > SDK add a web app and copy the config below into firebaseConfig.
+  Firebase setup reminders:
+  1) In the Firebase console enable Authentication -> Anonymous.
+  2) Create a Realtime Database and set rules (for testing you can allow authenticated users).
 */
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBgYWbZN1iwDQEJQMWUf6MmzLtvF5U5EbI",
+  authDomain: "game-of-chests.firebaseapp.com",
+  databaseURL: "https://game-of-chests-default-rtdb.firebaseio.com",
+  projectId: "game-of-chests",
+  storageBucket: "game-of-chests.firebasestorage.app",
+  messagingSenderId: "10619223676",
+  appId: "1:10619223676:web:a59848a05563fe9bff93f9"
 };
 
 const app = initializeApp(firebaseConfig);
