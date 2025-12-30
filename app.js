@@ -1,6 +1,7 @@
 // Multiplayer Game of Chests using Firebase Realtime Database + Anonymous Auth
-// Extended: support n coins (4 <= n <= 10) and a compensation value (0 <= c <= 10).
-// The compensation is added to the second-highest basket at the end before evaluating the result.
+// Extended: support n coins (4 <= n <= 10), a compensation value (0 <= c <= 10),
+// and a Refresh button that reloads coinCount, compensation and role from the room.
+// The Refresh button is disabled during an active game (when phase is 'offering' or 'placing').
 // Put this file alongside index.html and styles.css and serve as described earlier.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -73,9 +74,10 @@ let localRole = null; // 'presenter'|'placer'|null
 let roomData = null;
 let isListening = false;
 
-// coinCount & compensation UI controls (injected)
+// coinCount, compensation & refresh UI controls (injected)
 let coinCountSelect = null;
 let compSelect = null;
+let refreshBtn = null;
 
 // Default initial game state factory -> accepts coinCount and compensation
 function initialState(coinCount = 4, compensation = 0){
@@ -109,9 +111,9 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-// --- Inject coin-count and compensation selectors into the lobby (if not present)
+// --- Inject coin-count, compensation selectors and Refresh button into the lobby (if not present)
 function ensureLobbyControls(){
-  if(coinCountSelect && compSelect) return;
+  if(coinCountSelect && compSelect && refreshBtn) return;
   const lobbyControls = document.getElementById('lobby-controls');
   if(!lobbyControls) return;
 
@@ -149,14 +151,75 @@ function ensureLobbyControls(){
   cselect.value = '0';
   compWrapper.appendChild(cselect);
 
-  // Insert both controls before the Create Room button
+  // refresh button
+  const rWrapper = document.createElement('div');
+  rWrapper.style.display = 'flex';
+  rWrapper.style.alignItems = 'center';
+  rWrapper.style.marginLeft = '6px';
+  const rbtn = document.createElement('button');
+  rbtn.id = 'refreshBtn';
+  rbtn.textContent = 'Refresh';
+  rbtn.title = 'Reload coin count, compensation and role from the current room';
+  rbtn.style.padding = '6px 10px';
+  rbtn.disabled = false;
+  rWrapper.appendChild(rbtn);
+
+  // Insert controls before the Create Room button
   lobbyControls.insertBefore(ccWrapper, createRoomBtn);
   lobbyControls.insertBefore(compWrapper, createRoomBtn);
+  lobbyControls.insertBefore(rWrapper, createRoomBtn);
 
   coinCountSelect = select;
   compSelect = cselect;
+  refreshBtn = rbtn;
+
+  // refresh click handler
+  refreshBtn.addEventListener('click', async () => {
+    await handleRefreshClick();
+  });
 }
 ensureLobbyControls();
+
+// --- Refresh logic: fetch room data and update coinCount, compensation and roleSelect UI
+async function handleRefreshClick(){
+  if(!currentRoomId){
+    // No room: simply set roleSelect to current localRole if any
+    if(localRole) roleSelect.value = localRole;
+    alert('Not in a room — local UI updated.');
+    return;
+  }
+  try{
+    const snap = await get(ref(db, `rooms/${currentRoomId}`));
+    if(!snap.exists()){
+      alert('Room not found on server.');
+      return;
+    }
+    const room = snap.val();
+    // Update coinCount and compensation if present in room.state
+    const state = room.state || {};
+    const coinCount = state.coinCount || 4;
+    const compensation = (state.compensation === undefined || state.compensation === null) ? 0 : state.compensation;
+    if(coinCountSelect) coinCountSelect.value = String(coinCount);
+    if(compSelect) compSelect.value = String(compensation);
+
+    // Update roleSelect to reflect which role you currently occupy (if any)
+    if(room.presenter === uid) roleSelect.value = 'presenter';
+    else if(room.placer === uid) roleSelect.value = 'placer';
+    else {
+      // If you are not in the room, but a slot is free, do not auto-assign; show available preference:
+      if(!room.presenter) roleSelect.value = 'presenter';
+      else if(!room.placer) roleSelect.value = 'placer';
+      // else leave roleSelect as-is
+    }
+
+    // Also update local UI values immediately
+    renderCoinControls(coinCount, state.remaining || []);
+    alert('Refreshed from room.');
+  }catch(err){
+    console.error('Refresh failed', err);
+    alert('Refresh failed: ' + (err.message || err));
+  }
+}
 
 // --- Helpers to render coin controls dynamically (coins and buttons)
 function renderCoinControls(coinCount, remaining){
@@ -414,6 +477,13 @@ function renderState(state){
 
   // control enabling depending on role and phase
   const phase = state.phase || 'waiting';
+
+  // Refresh button: disabled during a game (consider 'offering' and 'placing' as in-game)
+  if(refreshBtn) {
+    const inGame = (phase === 'offering' || phase === 'placing');
+    refreshBtn.disabled = inGame;
+  }
+
   if(phase === 'waiting'){
     infoEl.textContent = 'Waiting for both players to join...';
     offers.forEach(b => b.disabled = true);
