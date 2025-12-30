@@ -80,7 +80,7 @@ let compSelect = null;
 let refreshBtn = null;
 
 // Default initial game state factory -> accepts coinCount and compensation
-function initialState(coinCount = 4, compensation = 0){
+function initialState(coinCount = 5, compensation = 2){
   const remaining = [];
   for(let i=1;i<=coinCount;i++) remaining.push(i);
   return {
@@ -159,7 +159,7 @@ function ensureLobbyControls(){
   const rbtn = document.createElement('button');
   rbtn.id = 'refreshBtn';
   rbtn.textContent = 'Refresh';
-  rbtn.title = 'Reload coin count, compensation and role from the current room';
+  rbtn.title = 'Reload coin count, compensation and role from the current room (resets game)';
   rbtn.style.padding = '6px 10px';
   rbtn.disabled = false;
   rWrapper.appendChild(rbtn);
@@ -181,13 +181,16 @@ function ensureLobbyControls(){
 ensureLobbyControls();
 
 // --- Refresh logic: fetch room data and update coinCount, compensation and roleSelect UI
+// Updated: will now reset the room.state to the selected coinCount & compensation (restart the game)
+// unless the game is active (offering/placing) — in that case refresh is prevented.
 async function handleRefreshClick(){
+  // If not in a room, just update local UI and return
   if(!currentRoomId){
-    // No room: simply set roleSelect to current localRole if any
     if(localRole) roleSelect.value = localRole;
     alert('Not in a room — local UI updated.');
     return;
   }
+
   try{
     const snap = await get(ref(db, `rooms/${currentRoomId}`));
     if(!snap.exists()){
@@ -195,26 +198,37 @@ async function handleRefreshClick(){
       return;
     }
     const room = snap.val();
-    // Update coinCount and compensation if present in room.state
     const state = room.state || {};
-    const coinCount = state.coinCount || 4;
-    const compensation = (state.compensation === undefined || state.compensation === null) ? 0 : state.compensation;
-    if(coinCountSelect) coinCountSelect.value = String(coinCount);
-    if(compSelect) compSelect.value = String(compensation);
 
-    // Update roleSelect to reflect which role you currently occupy (if any)
-    if(room.presenter === uid) roleSelect.value = 'presenter';
-    else if(room.placer === uid) roleSelect.value = 'placer';
-    else {
-      // If you are not in the room, but a slot is free, do not auto-assign; show available preference:
-      if(!room.presenter) roleSelect.value = 'presenter';
-      else if(!room.placer) roleSelect.value = 'placer';
-      // else leave roleSelect as-is
+    // If the room is in an active game, do not allow refresh (safety check)
+    const phase = (state.phase || 'waiting');
+    if(phase === 'offering' || phase === 'placing'){
+      alert('Cannot refresh while a game is active. Wait until the round ends.');
+      return;
     }
 
-    // Also update local UI values immediately
-    renderCoinControls(coinCount, state.remaining || []);
-    alert('Refreshed from room.');
+    // Read selected values from the UI (use selected values, not the room values)
+    const selectedCoinCount = coinCountSelect ? Number(coinCountSelect.value) : (state.coinCount || 4);
+    const selectedComp = compSelect ? Number(compSelect.value) : ((state.compensation === undefined || state.compensation === null) ? 0 : state.compensation);
+
+    // Build new initial state with selected values
+    const newState = initialState(selectedCoinCount, selectedComp);
+    // If both players are already present, start offering immediately
+    if(room.presenter && room.placer){
+      newState.phase = 'offering';
+    } else {
+      newState.phase = 'waiting';
+    }
+
+    // Write the new state to the DB (this restarts the game for everyone)
+    await set(ref(db, `rooms/${currentRoomId}/state`), newState);
+
+    // Update local UI immediately to reflect the change
+    renderCoinControls(selectedCoinCount, newState.remaining);
+    if(room.presenter === uid) roleSelect.value = 'presenter';
+    else if(room.placer === uid) roleSelect.value = 'placer';
+
+    alert(`Room reset: coinCount=${selectedCoinCount}, compensation=${selectedComp}`);
   }catch(err){
     console.error('Refresh failed', err);
     alert('Refresh failed: ' + (err.message || err));
@@ -480,7 +494,7 @@ function renderState(state){
 
   // Refresh button: disabled during a game (consider 'offering' and 'placing' as in-game)
   if(refreshBtn) {
-    // const inGame = (phase === 'offering' || phase === 'placing');
+    //const inGame = (phase === 'offering' || phase === 'placing');
     const inGame = (false);
     refreshBtn.disabled = inGame;
   }
@@ -540,11 +554,11 @@ function renderState(state){
     // - if s1 == s2WithComp -> draw
     // - if s1 < s2WithComp -> placer loses (presenter wins)
     if(s1 > s2WithComp) {
-      resultText.textContent = `Placer wins — ${s1} : ${s2WithComp} `;
+      resultText.textContent = `Placer wins — top ${s1} vs second+comp ${s2WithComp} (comp ${comp})`;
     } else if (s1 === s2WithComp) {
-      resultText.textContent = `Draw — ${s1} : ${s2WithComp} `;
+      resultText.textContent = `Draw — top ${s1} equals second+comp ${s2WithComp} (comp ${comp})`;
     } else {
-      resultText.textContent = `Placer loses — ${s1} : ${s2WithComp} `;
+      resultText.textContent = `Placer loses — top ${s1} vs second+comp ${s2WithComp} (comp ${comp})`;
     }
 
     resultEl.hidden = false;
