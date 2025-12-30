@@ -1,10 +1,8 @@
 // Multiplayer Game of Chests using Firebase Realtime Database + Anonymous Auth
 // Defaults: coinCount = 5, compensation = 2.
-// Updated: guest detection now uses the room.creator (the user who created the room).
-// The creator is set when a room is created; the guest is the other player who joins later.
-// Falls back to timestamps only if creator is missing (older rooms).
-//
+// Updated: guest detection uses the room.creator (the user who created the room).
 // Added: play a short click sound each time a coin is placed.
+// Added: play triumphant music if guest wins, sad music if guest loses (no sound on draw).
 //
 // Put this file alongside index.html and styles.css and serve as described earlier.
 
@@ -99,33 +97,106 @@ function initialState(coinCount = 5, compensation = 2){
   };
 }
 
-// --- Click sound setup (Web Audio API)
+// --- Click sound & end-of-game music setup (Web Audio API)
+// Create a single AudioContext and helper functions to play sounds.
 const audioCtx = (typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext))
   ? new (window.AudioContext || window.webkitAudioContext)()
   : null;
 
+function resumeAudioContextIfNeeded(){
+  if(!audioCtx) return Promise.resolve();
+  if(audioCtx.state === 'suspended') {
+    return audioCtx.resume().catch(()=>{/* ignore */});
+  }
+  return Promise.resolve();
+}
+
+// Short percussive click used when a coin is placed
 function playClick(){
   if(!audioCtx) return;
-  try{
-    if(audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(()=>{/* ignore */});
+  resumeAudioContextIfNeeded().then(()=>{
+    try{
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1200, now);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + 0.001);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.07);
+    }catch(err){
+      console.warn('playClick error', err);
     }
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(1200, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.001);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start(now);
-    osc.stop(now + 0.07);
-  }catch(err){
-    console.warn('playClick error', err);
-  }
+  });
 }
+
+// Play a short sequence of notes. notes: array of {freq, dur}
+// type controls oscillator type
+function playSequence(notes, type = 'sine', volume = 0.12){
+  if(!audioCtx) return;
+  resumeAudioContextIfNeeded().then(()=>{
+    try{
+      const now = audioCtx.currentTime;
+      let t = now;
+      notes.forEach(n => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(n.freq, t);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(volume, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + n.dur * 0.9);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + n.dur);
+        t += n.dur;
+      });
+    }catch(err){
+      console.warn('playSequence error', err);
+    }
+  });
+}
+
+// Triumphant melody (major arpeggio)
+// Short uplifting pattern ~1.2s total
+function playTriumphant(){
+  // Frequencies: C5, E5, G5, C6
+  const C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5;
+  const notes = [
+    {freq: C5, dur: 0.18},
+    {freq: E5, dur: 0.18},
+    {freq: G5, dur: 0.18},
+    {freq: C6, dur: 0.28},
+    {freq: G5, dur: 0.2}
+  ];
+  playSequence(notes, 'triangle', 0.14);
+}
+
+// Sad melody (minor descending)
+// Short melancholic pattern ~1.2s total
+function playSad(){
+  // Frequencies: A4, F4, E4, D4 (descending minor-ish)
+  const A4 = 440.0, F4 = 349.23, E4 = 329.63, D4 = 293.66;
+  const notes = [
+    {freq: A4, dur: 0.25},
+    {freq: F4, dur: 0.25},
+    {freq: E4, dur: 0.3},
+    {freq: D4, dur: 0.4}
+  ];
+  playSequence(notes, 'sine', 0.12);
+}
+
+// track last outcome played to avoid replaying on every DB update
+let lastOutcomePlayed = null; // 'win'|'lose'|'draw'|null
 
 // Auth
 signInAnonymously(auth).catch(err => {
@@ -276,6 +347,8 @@ async function handleRefreshClick(){
       // Preserve creator if present. We don't overwrite creator on refresh.
       // Set the restarted state
       cur.state = newState;
+      // Reset lastOutcomePlayed since game restarted
+      lastOutcomePlayed = null;
       return cur;
     });
   } catch(err) {
@@ -528,19 +601,13 @@ function attachRoomListener(roomId){
 function determineGuestRole(room){
   if(!room) return 'placer';
   if(room.creator){
-    // If creator equals presenter, the guest is placer, and vice versa.
     if(room.presenter && room.placer){
       if(room.creator === room.presenter) return 'placer';
       if(room.creator === room.placer) return 'presenter';
-      // Creator exists but is neither current presenter nor placer -- fall back to timestamps below
     } else {
-      // Only one assigned: guest not yet present; treat guest as the other role that will join later.
-      // For message composition when finished we expect both present, so fallback to placer.
       return 'placer';
     }
   }
-
-  // Fallback: use timestamps if available
   const pAt = room.presenterJoinedAt || 0;
   const plAt = room.placerJoinedAt || 0;
   if(pAt && plAt){
@@ -657,8 +724,7 @@ function renderState(state){
     // Determine guest role using creator/uid logic
     const guestRole = determineGuestRole(roomData);
 
-    // Map guestScore and opponentScore based on known rule:
-    // placer gets the top basket (s1), presenter gets the other (s2), then compensation applied to second-highest
+    // Map guestScore and opponentScore
     let guestScore, opponentScore;
     if(guestRole === 'placer'){
       guestScore = s1;
@@ -671,12 +737,26 @@ function renderState(state){
     // Compose message from guest perspective
     if(winnerSide === 'draw'){
       resultText.textContent = `The game ended in a draw ${guestScore} : ${opponentScore}`;
+      // Do not play any music on draw; reset lastOutcomePlayed so next finished state will play again
+      if(lastOutcomePlayed !== 'draw'){
+        lastOutcomePlayed = 'draw';
+      }
     } else {
       const guestWon = (winnerSide === guestRole);
       if(guestWon){
         resultText.textContent = `My guest wins ${guestScore} : ${opponentScore}`;
+        if(lastOutcomePlayed !== 'win'){
+          lastOutcomePlayed = 'win';
+          // Play triumphant music
+          playTriumphant();
+        }
       } else {
         resultText.textContent = `My guest loses ${guestScore} : ${opponentScore}`;
+        if(lastOutcomePlayed !== 'lose'){
+          lastOutcomePlayed = 'lose';
+          // Play sad music
+          playSad();
+        }
       }
     }
 
@@ -729,6 +809,7 @@ newGameBtn.addEventListener('click', async () => {
   const compensation = (roomData && roomData.state && (roomData.state.compensation !== undefined && roomData.state.compensation !== null)) ? Number(roomData.state.compensation) : (compSelect ? Number(compSelect.value) : 2);
   const sRef = ref(db, `rooms/${currentRoomId}/state`);
   await set(sRef, initialState(coinCount, compensation));
+  lastOutcomePlayed = null;
 });
 
 // Periodic check to move waiting -> offering when both players present
