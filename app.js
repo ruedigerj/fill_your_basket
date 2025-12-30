@@ -1,5 +1,6 @@
 // Multiplayer Game of Chests using Firebase Realtime Database + Anonymous Auth
-// Extended: support n coins (4 <= n <= 10). A coin-count selector is injected into the lobby.
+// Extended: support n coins (4 <= n <= 10) and a compensation value (0 <= c <= 10).
+// The compensation is added to the second-highest basket at the end before evaluating the result.
 // Put this file alongside index.html and styles.css and serve as described earlier.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -72,11 +73,12 @@ let localRole = null; // 'presenter'|'placer'|null
 let roomData = null;
 let isListening = false;
 
-// coinCount UI control (injected)
+// coinCount & compensation UI controls (injected)
 let coinCountSelect = null;
+let compSelect = null;
 
-// Default initial game state factory -> now accepts coinCount
-function initialState(coinCount = 4){
+// Default initial game state factory -> accepts coinCount and compensation
+function initialState(coinCount = 4, compensation = 0){
   const remaining = [];
   for(let i=1;i<=coinCount;i++) remaining.push(i);
   return {
@@ -87,7 +89,8 @@ function initialState(coinCount = 4){
     currentOffered: null,
     phase: 'waiting', // waiting -> offering -> placing -> finished
     moves: [],
-    coinCount: coinCount
+    coinCount: coinCount,
+    compensation: compensation
   };
 }
 
@@ -106,18 +109,18 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-// --- Inject coin-count selector into the lobby (if not present)
-function ensureCoinCountControl(){
-  if(coinCountSelect) return;
+// --- Inject coin-count and compensation selectors into the lobby (if not present)
+function ensureLobbyControls(){
+  if(coinCountSelect && compSelect) return;
   const lobbyControls = document.getElementById('lobby-controls');
   if(!lobbyControls) return;
-  const wrapper = document.createElement('div');
-  wrapper.style.display = 'flex';
-  wrapper.style.gap = '8px';
-  wrapper.style.alignItems = 'center';
-  wrapper.innerHTML = `
-    <label for="coinCountSelect">Coins:</label>
-  `;
+
+  // coin count control
+  const ccWrapper = document.createElement('div');
+  ccWrapper.style.display = 'flex';
+  ccWrapper.style.gap = '8px';
+  ccWrapper.style.alignItems = 'center';
+  ccWrapper.innerHTML = `<label for="coinCountSelect">Coins:</label>`;
   const select = document.createElement('select');
   select.id = 'coinCountSelect';
   for(let n=4;n<=10;n++){
@@ -126,19 +129,37 @@ function ensureCoinCountControl(){
     opt.textContent = String(n);
     select.appendChild(opt);
   }
-  // default 4
   select.value = '4';
-  wrapper.appendChild(select);
-  // insert before createRoomBtn if present
-  lobbyControls.insertBefore(wrapper, createRoomBtn);
+  ccWrapper.appendChild(select);
+
+  // compensation control
+  const compWrapper = document.createElement('div');
+  compWrapper.style.display = 'flex';
+  compWrapper.style.gap = '8px';
+  compWrapper.style.alignItems = 'center';
+  compWrapper.innerHTML = `<label for="compSelect">Comp:</label>`;
+  const cselect = document.createElement('select');
+  cselect.id = 'compSelect';
+  for(let c=0;c<=10;c++){
+    const opt = document.createElement('option');
+    opt.value = String(c);
+    opt.textContent = String(c);
+    cselect.appendChild(opt);
+  }
+  cselect.value = '0';
+  compWrapper.appendChild(cselect);
+
+  // Insert both controls before the Create Room button
+  lobbyControls.insertBefore(ccWrapper, createRoomBtn);
+  lobbyControls.insertBefore(compWrapper, createRoomBtn);
+
   coinCountSelect = select;
+  compSelect = cselect;
 }
-ensureCoinCountControl();
+ensureLobbyControls();
 
 // --- Helpers to render coin controls dynamically (coins and buttons)
 function renderCoinControls(coinCount, remaining){
-  // coinCount: integer
-  // remaining: array of numbers still available
   coinsContainer.innerHTML = '';
   coinButtonsContainer.innerHTML = '';
   for(let v=1; v<=coinCount; v++){
@@ -206,7 +227,7 @@ async function placeCoinTransaction(coin){
       });
       cur.turn = (cur.turn || 0) + 1;
       cur.currentOffered = null;
-      // if finished
+      // if finished: use cur.coinCount (fallback 4)
       if(cur.turn >= (cur.coinCount || 4)){
         cur.phase = 'finished';
       } else {
@@ -228,6 +249,7 @@ async function placeCoinTransaction(coin){
 createRoomBtn.addEventListener('click', async () => {
   const role = roleSelect.value;
   const coinCount = coinCountSelect ? Number(coinCountSelect.value) : 4;
+  const compensation = compSelect ? Number(compSelect.value) : 0;
   // push new room to /rooms to get unique key
   const roomsRef = ref(db, 'rooms');
   const newRoomRef = push(roomsRef);
@@ -236,7 +258,7 @@ createRoomBtn.addEventListener('click', async () => {
     createdAt: Date.now(),
     presenter: role === 'presenter' ? uid : null,
     placer: role === 'placer' ? uid : null,
-    state: initialState(coinCount)
+    state: initialState(coinCount, compensation)
   };
   await set(newRoomRef, room);
   joinRoom(rid, role);
@@ -349,10 +371,11 @@ function attachRoomListener(roomId){
     else if(room.placer === uid) localRole = 'placer';
     else localRole = null;
     localRoleLabel.textContent = `You: ${localRole || 'spectator'}`;
-    // if state missing, initialize (use room.state.coinCount if present or default 4)
+    // if state missing, initialize (use room.state.coinCount if present or default 4 and room.state.compensation)
     if(!room.state) {
-      const coinCount = room.state && room.state.coinCount ? room.state.coinCount : (room.coinCount || 4);
-      set(ref(db, `rooms/${roomId}/state`), initialState(coinCount));
+      const coinCount = (room.state && room.state.coinCount) ? room.state.coinCount : (room.coinCount || 4);
+      const compensation = (room.state && room.state.compensation) ? room.state.compensation : (room.compensation || 0);
+      set(ref(db, `rooms/${roomId}/state`), initialState(coinCount, compensation));
       return;
     }
     renderState(room.state);
@@ -362,9 +385,11 @@ function attachRoomListener(roomId){
 
 // UI rendering based on room.state
 function renderState(state){
-  // ensure coinCount control reflects the room's coinCount (but don't override while creating)
+  // ensure coinCount & compensation controls reflect the room's values (don't overwrite while creating)
   const coinCount = state.coinCount || 4;
+  const compensation = (state.compensation === undefined || state.compensation === null) ? 0 : state.compensation;
   if(coinCountSelect) coinCountSelect.value = String(coinCount);
+  if(compSelect) compSelect.value = String(compensation);
 
   // render coin controls for this coinCount
   renderCoinControls(coinCount, state.remaining);
@@ -429,15 +454,28 @@ function renderState(state){
   }
   resultEl.hidden = true;
 
-  // If finished, show result
+  // If finished, show result (apply compensation to the second-highest sum)
   if(phase === 'finished'){
-    const sorted = (state.sums || [0,0,0]).slice().sort((a,b)=>b-a);
-    const s1 = sorted[0], s2 = sorted[1];
-    if(s1 > s2) {
-      resultText.textContent = `Placer wins — top ${s1} vs second ${s2}`;
+    const sums = (state.sums || [0,0,0]).slice();
+    // sort descending while keeping values only (we don't need which basket belonged to whom)
+    const sorted = sums.slice().sort((a,b)=>b-a);
+    const s1 = sorted[0];
+    const s2 = sorted[1];
+    const comp = (state.compensation === undefined || state.compensation === null) ? 0 : Number(state.compensation);
+    const s2WithComp = s2 + comp;
+
+    // Determine result:
+    // - if s1 > s2WithComp -> placer wins
+    // - if s1 == s2WithComp -> draw
+    // - if s1 < s2WithComp -> placer loses (presenter wins)
+    if(s1 > s2WithComp) {
+      resultText.textContent = `Placer wins — top ${s1} vs second+comp ${s2WithComp} (comp ${comp})`;
+    } else if (s1 === s2WithComp) {
+      resultText.textContent = `Draw — top ${s1} equals second+comp ${s2WithComp} (comp ${comp})`;
     } else {
-      resultText.textContent = `Presenter wins (draw) — top ${s1} vs second ${s2}`;
+      resultText.textContent = `Placer loses — top ${s1} vs second+comp ${s2WithComp} (comp ${comp})`;
     }
+
     resultEl.hidden = false;
     infoEl.textContent = 'Game over';
     offers.forEach(b => b.disabled = true);
@@ -486,10 +524,11 @@ offers.forEach(b => b.addEventListener('click', async (e) => {
 newGameBtn.addEventListener('click', async () => {
   if(!currentRoomId) return;
   if(!confirm('Reset game to initial state?')) return;
-  // Decide coinCount to reset to: prefer room.state.coinCount or lobby select value
+  // Decide coinCount & compensation to reset to: prefer room.state values or lobby selects
   const coinCount = (roomData && roomData.state && roomData.state.coinCount) ? roomData.state.coinCount : (coinCountSelect ? Number(coinCountSelect.value) : 4);
+  const compensation = (roomData && roomData.state && (roomData.state.compensation !== undefined && roomData.state.compensation !== null)) ? Number(roomData.state.compensation) : (compSelect ? Number(compSelect.value) : 0);
   const sRef = ref(db, `rooms/${currentRoomId}/state`);
-  await set(sRef, initialState(coinCount));
+  await set(sRef, initialState(coinCount, compensation));
 });
 
 // Utility: short helper to show/hide and update UI when user refreshes
@@ -504,7 +543,8 @@ setInterval(async () => {
     const sSnap = await get(sRef);
     if(!sSnap.exists()){
       const coinCount = (roomData && roomData.state && roomData.state.coinCount) ? roomData.state.coinCount : (roomData.coinCount || 4);
-      await set(sRef, initialState(coinCount));
+      const compensation = (roomData && roomData.state && (roomData.state.compensation !== undefined && roomData.state.compensation !== null)) ? Number(roomData.state.compensation) : (roomData.compensation || 0);
+      await set(sRef, initialState(coinCount, compensation));
     }
   }
 }, 1000);
@@ -514,5 +554,5 @@ setInterval(async () => {
   boardSection.hidden = true;
   roomInfo.hidden = true;
   resultEl.hidden = true;
-  ensureCoinCountControl();
+  ensureLobbyControls();
 })();
