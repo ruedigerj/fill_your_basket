@@ -3,6 +3,8 @@
 // Updated: guest detection uses the room.creator (the user who created the room).
 // Added: play a short click sound each time a coin is placed.
 // Added: play triumphant music if guest wins, sad music if guest loses (no sound on draw).
+// Added: "Guest:" selector with names (default "My guest"); final message shows selected name
+//         (e.g. "Robin won 7:6") instead of "My guest ...".
 //
 // Put this file alongside index.html and styles.css and serve as described earlier.
 
@@ -75,10 +77,11 @@ let localRole = null; // 'presenter'|'placer'|null
 let roomData = null;
 let isListening = false;
 
-// coinCount, compensation & refresh UI controls (injected)
+// coinCount, compensation, refresh & guest UI controls (injected)
 let coinCountSelect = null;
 let compSelect = null;
 let refreshBtn = null;
+let guestSelect = null; // NEW: UI select for guest name
 
 // Default initial game state factory (defaults: coinCount=5, compensation=2)
 function initialState(coinCount = 5, compensation = 2){
@@ -169,7 +172,6 @@ function playSequence(notes, type = 'sine', volume = 0.12){
 // Triumphant melody (major arpeggio)
 // Short uplifting pattern ~1.2s total
 function playTriumphant(){
-  // Frequencies: C5, E5, G5, C6
   const C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5;
   const notes = [
     {freq: C5, dur: 0.18},
@@ -182,9 +184,7 @@ function playTriumphant(){
 }
 
 // Sad melody (minor descending)
-// Short melancholic pattern ~1.2s total
 function playSad(){
-  // Frequencies: A4, F4, E4, D4 (descending minor-ish)
   const A4 = 440.0, F4 = 349.23, E4 = 329.63, D4 = 293.66;
   const notes = [
     {freq: A4, dur: 0.25},
@@ -213,12 +213,13 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-// --- Inject lobby controls (coinCount, compensation, refresh)
+// --- Inject lobby controls (coinCount, compensation, guest selector and Refresh)
 function ensureLobbyControls(){
-  if(coinCountSelect && compSelect && refreshBtn) return;
+  if(coinCountSelect && compSelect && refreshBtn && guestSelect) return;
   const lobbyControls = document.getElementById('lobby-controls');
   if(!lobbyControls) return;
 
+  // coin count control
   const ccWrapper = document.createElement('div');
   ccWrapper.style.display = 'flex';
   ccWrapper.style.gap = '8px';
@@ -235,6 +236,7 @@ function ensureLobbyControls(){
   select.value = '5';
   ccWrapper.appendChild(select);
 
+  // compensation control
   const compWrapper = document.createElement('div');
   compWrapper.style.display = 'flex';
   compWrapper.style.gap = '8px';
@@ -251,6 +253,26 @@ function ensureLobbyControls(){
   cselect.value = '2';
   compWrapper.appendChild(cselect);
 
+  // guest selector (NEW)
+  const guestWrapper = document.createElement('div');
+  guestWrapper.style.display = 'flex';
+  guestWrapper.style.gap = '8px';
+  guestWrapper.style.alignItems = 'center';
+  guestWrapper.innerHTML = `<label for="guestSelect">Guest:</label>`;
+  const gselect = document.createElement('select');
+  gselect.id = 'guestSelect';
+  const guestNames = ['My guest', 'Burkhard', 'Heribert', 'Kester', 'Laura', 'Melanie', 'Robin'];
+  guestNames.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    gselect.appendChild(opt);
+  });
+  // default "My guest"
+  gselect.value = 'My guest';
+  guestWrapper.appendChild(gselect);
+
+  // refresh button
   const rWrapper = document.createElement('div');
   rWrapper.style.display = 'flex';
   rWrapper.style.alignItems = 'center';
@@ -263,13 +285,16 @@ function ensureLobbyControls(){
   rbtn.disabled = false;
   rWrapper.appendChild(rbtn);
 
+  // Insert controls before the Create Room button
   lobbyControls.insertBefore(ccWrapper, createRoomBtn);
   lobbyControls.insertBefore(compWrapper, createRoomBtn);
+  lobbyControls.insertBefore(guestWrapper, createRoomBtn);
   lobbyControls.insertBefore(rWrapper, createRoomBtn);
 
   coinCountSelect = select;
   compSelect = cselect;
   refreshBtn = rbtn;
+  guestSelect = gselect;
 
   refreshBtn.addEventListener('click', async () => {
     await handleRefreshClick();
@@ -461,7 +486,7 @@ createRoomBtn.addEventListener('click', async () => {
 
   const room = {
     createdAt: Date.now(),
-    creator: uid,             // NEW: record the room opener
+    creator: uid,             // record the room opener
     presenter: null,
     placer: null,
     presenterJoinedAt: null,
@@ -734,27 +759,27 @@ function renderState(state){
       opponentScore = s1;
     }
 
-    // Compose message from guest perspective
+    // Determine selected guest name from UI (default "My guest")
+    const guestName = (guestSelect && guestSelect.value) ? guestSelect.value : 'My guest';
+
+    // Compose message from guest perspective with chosen name; format scores as "7:6"
     if(winnerSide === 'draw'){
-      resultText.textContent = `The game ended in a draw ${guestScore} : ${opponentScore}`;
-      // Do not play any music on draw; reset lastOutcomePlayed so next finished state will play again
+      resultText.textContent = `The game ended in a draw ${guestScore}:${opponentScore}`;
       if(lastOutcomePlayed !== 'draw'){
         lastOutcomePlayed = 'draw';
       }
     } else {
       const guestWon = (winnerSide === guestRole);
       if(guestWon){
-        resultText.textContent = `My guest wins ${guestScore} : ${opponentScore}`;
+        resultText.textContent = `${guestName} won ${guestScore}:${opponentScore}`;
         if(lastOutcomePlayed !== 'win'){
           lastOutcomePlayed = 'win';
-          // Play triumphant music
           playTriumphant();
         }
       } else {
-        resultText.textContent = `My guest loses ${guestScore} : ${opponentScore}`;
+        resultText.textContent = `${guestName} lost ${guestScore}:${opponentScore}`;
         if(lastOutcomePlayed !== 'lose'){
           lastOutcomePlayed = 'lose';
-          // Play sad music
           playSad();
         }
       }
