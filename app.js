@@ -7,6 +7,8 @@
 // Reworked: "Refresh" button replaced by "Play". It can be pressed any time and starts a new game
 //           with selected coinCount, role, compensation and guest name. The bottom "New Game"
 //           button is hidden (superseded).
+// Change requested: removed the small squares that indicate which coins are still available.
+//                  Only the Place buttons remain visible.
 //
 // Put this file alongside index.html and styles.css and serve as described earlier.
 
@@ -50,7 +52,7 @@ const leaveRoomBtn = document.getElementById('leaveRoom');
 const boardSection = document.getElementById('board');
 const infoEl = document.getElementById('info');
 const offers = Array.from(document.querySelectorAll('.offer'));
-const coinsContainer = document.getElementById('coins');
+const coinsContainer = document.getElementById('coins'); // (kept for compatibility but no spans will be rendered)
 const coinButtonsContainer = document.getElementById('coin-buttons');
 const basketContents = [
   document.getElementById('basket-0'),
@@ -83,7 +85,7 @@ let isListening = false;
 let coinCountSelect = null;
 let compSelect = null;
 let playBtn = null;
-let guestSelect = null; // NEW: UI select for guest name
+let guestSelect = null; // UI select for guest name
 
 // Default initial game state factory (defaults: coinCount=5, compensation=2)
 function initialState(coinCount = 5, compensation = 2){
@@ -312,10 +314,6 @@ function assignRoleWithTimestamp(obj, role, uidToAssign){
 }
 
 // --- Play handler (start a new game with current UI settings)
-// Behavior:
-//  - If not in a room: create a new room, set creator=uid, assign the selected role to current user, set room.guestName, set initial state, then joinRoom.
-//  - If already in a room: runTransaction on the room node to assign selected role to current user (force-take) and set room.state to the new initial state and room.guestName.
-// The Play button can be pressed at any time (it will restart the game).
 async function handlePlayClick(){
   const selectedCoinCount = coinCountSelect ? Number(coinCountSelect.value) : 5;
   const selectedComp = compSelect ? Number(compSelect.value) : 2;
@@ -324,8 +322,6 @@ async function handlePlayClick(){
 
   // Build new state
   const newState = initialState(selectedCoinCount, selectedComp);
-  // If room already has both players, start offering immediately; otherwise waiting
-  // We'll set phase after obtaining room snapshot / transaction below.
 
   if(!currentRoomId){
     // Create new room and assign role to creator (current user)
@@ -392,23 +388,18 @@ async function handlePlayClick(){
 }
 
 // --- Helpers: render coin controls
+// Modified to remove the small squares (spans) indicating availability.
+// Only Place buttons are rendered now.
 function renderCoinControls(coinCount, remaining){
-  coinsContainer.innerHTML = '';
+  // We still clear coinsContainer for compatibility, but do not render the small squares.
+  if(coinsContainer) coinsContainer.innerHTML = '';
   coinButtonsContainer.innerHTML = '';
   for(let v=1; v<=coinCount; v++){
-    const span = document.createElement('span');
-    span.className = 'coin';
-    span.dataset.value = String(v);
-    span.textContent = String(v);
-    if(remaining && remaining.includes(v)) span.classList.add('available');
-    else span.classList.add('used');
-    coinsContainer.appendChild(span);
-
     const btn = document.createElement('button');
     btn.className = 'place-coin';
     btn.dataset.value = String(v);
     btn.textContent = `Place ${v}`;
-    btn.disabled = true;
+    btn.disabled = true; // enabled by renderState when appropriate
     coinButtonsContainer.appendChild(btn);
   }
 }
@@ -578,7 +569,8 @@ function detachRoomListener(){
   isListening = false;
   roomData = null;
   movesList.innerHTML = '';
-  coinsContainer.innerHTML = '';
+  // clear coin buttons (and coins container)
+  if(coinsContainer) coinsContainer.innerHTML = '';
   coinButtonsContainer.innerHTML = '';
   basketEls.forEach(el => {
     el.classList.remove('offered');
