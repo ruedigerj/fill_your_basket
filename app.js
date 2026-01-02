@@ -9,6 +9,9 @@
 //           button is hidden (superseded).
 // Change requested: removed the small squares that indicate which coins are still available.
 //                  Only the Place buttons remain visible.
+// Fix: Play no longer forcibly evicts the other player from their role. When pressing Play the
+//      game state is reset but existing presenter/placer assignments are preserved unless the slot
+//      is empty or already belongs to the current user. This prevents the guest being thrown out.
 //
 // Put this file alongside index.html and styles.css and serve as described earlier.
 
@@ -253,7 +256,7 @@ function ensureLobbyControls(){
   guestWrapper.innerHTML = `<label for="guestSelect">Guest:</label>`;
   const gselect = document.createElement('select');
   gselect.id = 'guestSelect';
-  const guestNames = ['My guest', 'Burkhard', 'Heribert', 'Kester', 'Laura', 'Melanie', 'Patrick', 'Robin'];
+  const guestNames = ['My guest', 'Burkhard', 'Heribert', 'Kester', 'Laura', 'Melanie', 'Robin'];
   guestNames.forEach(name => {
     const opt = document.createElement('option');
     opt.value = name;
@@ -314,6 +317,8 @@ function assignRoleWithTimestamp(obj, role, uidToAssign){
 }
 
 // --- Play handler (start a new game with current UI settings)
+// Important change: do NOT evict the existing other player when restarting.
+// Only assign a role to the current user if the slot is empty or already belongs to them.
 async function handlePlayClick(){
   const selectedCoinCount = coinCountSelect ? Number(coinCountSelect.value) : 5;
   const selectedComp = compSelect ? Number(compSelect.value) : 2;
@@ -350,17 +355,31 @@ async function handlePlayClick(){
     return;
   }
 
-  // In-room: update atomically
+  // In-room: update atomically without evicting the other user
   const roomRefPath = ref(db, `rooms/${currentRoomId}`);
   try {
     await runTransaction(roomRefPath, cur => {
       if(cur == null) return cur;
       // assign guestName into room (so all clients can use it)
       cur.guestName = selectedGuestName;
-      // assign role to current user (force-take)
-      if(selectedRole === 'presenter') assignRoleWithTimestamp(cur, 'presenter', uid);
-      else if(selectedRole === 'placer') assignRoleWithTimestamp(cur, 'placer', uid);
-      // set new state and phase
+
+      // Only take a role if the slot is empty or already belongs to us.
+      if(selectedRole === 'presenter'){
+        if(!cur.presenter || cur.presenter === uid){
+          assignRoleWithTimestamp(cur, 'presenter', uid);
+        } else {
+          // slot taken by someone else -> keep as-is (do not evict)
+          // Optionally we could inform user; here we silently preserve the other player's slot.
+        }
+      } else if(selectedRole === 'placer'){
+        if(!cur.placer || cur.placer === uid){
+          assignRoleWithTimestamp(cur, 'placer', uid);
+        } else {
+          // slot taken by someone else -> keep as-is
+        }
+      }
+
+      // set new state and phase (preserve existing role assignments)
       cur.state = newState;
       cur.state.phase = (cur.presenter && cur.placer) ? 'offering' : 'waiting';
       // reset last outcome marker
