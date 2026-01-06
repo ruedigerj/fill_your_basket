@@ -226,7 +226,7 @@ function ensureLobbyControls(){
   compWrapper.style.display = 'flex';
   compWrapper.style.gap = '8px';
   compWrapper.style.alignItems = 'left';
-  compWrapper.innerHTML = `<label for="compSelect">Compensation for presenter:</label>`;
+  compWrapper.innerHTML = `<label for="compSelect">Compensation 4 presenter:</label>`;
   const cselect = document.createElement('select');
   cselect.id = 'compSelect';
   for(let c=0;c<=10;c++){
