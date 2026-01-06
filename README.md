@@ -1,2 +1,2 @@
-# fill_your_basket
+# Fill your basket
 "Fill your basket" is a two-players game. The "presenter" selects one of three baskets and the "placer" puts one of n coins with values from 1 to n in that basket. This is repeated n times. At the end the placer may select the basket with the largest sum and the presenter is awarded the second largest basket. Since the placer has an advantage a compensation, to be agreed upon before the game, is paid to the presenter. See https://oeis.org/A392305 for the values of a "fair compensation".
