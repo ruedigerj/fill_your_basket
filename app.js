@@ -1,17 +1,5 @@
 // Multiplayer Game of Chests using Firebase Realtime Database + Anonymous Auth
 // Defaults: coinCount = 5, compensation = 2.
-// Updated: guest detection uses the room.creator (the user who created the room).
-// Added: play a short click sound each time a coin is placed.
-// Added: play triumphant music if guest wins, sad music if guest loses (no sound on draw).
-// Added: "Guest:" selector with names (default "My guest"); final message shows selected name.
-// Reworked: "Refresh" button replaced by "Play". It can be pressed any time and starts a new game
-//           with selected coinCount, role, compensation and guest name. The bottom "New Game"
-//           button is hidden (superseded).
-// Change requested: removed the small squares that indicate which coins are still available.
-//                  Only the Place buttons remain visible.
-// Fixes: Play now swaps roles between players when the caller is already in the room.
-//        If caller isn't in the room, Play only assigns the selected role if the slot is empty
-//        (to avoid evicting another player).
 //
 // Put this file alongside index.html and styles.css and serve as described earlier.
 
