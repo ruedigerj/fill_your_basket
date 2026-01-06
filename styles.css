@@ -44,3 +44,6 @@ footer{margin-top:16px;color:var(--muted)}
   height: 20px;
   font-size: 14px;
 }
+#auth-status {
+  font-size: 10px;    /* set the font size you want */
+}
