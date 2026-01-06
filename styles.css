@@ -33,3 +33,6 @@ h1{margin:0 0 12px}
 #history{margin-top:8px}
 #result{margin-top:16px;text-align:center}
 footer{margin-top:16px;color:var(--muted)}
+#lobby-controls label {
+  display: inline-block;
+}
