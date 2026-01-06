@@ -16,7 +16,7 @@ main{max-width:900px;margin:0 auto}
 h1{margin:0 0 12px}
 #lobby{background:var(--card);padding:12px;border-radius:8px;margin-bottom:12px}
 #lobby-controls{display:flex;gap:12px;align-items:center;margin-bottom:8px}
-.join{display:flex;gap:8px;align-items:center}
+.join{display:flex;gap:8px;align-items:left}
 #board{background:var(--card);padding:16px;border-radius:8px;box-shadow:0 2px 8px rgba(2,6,23,0.06)}
 #baskets{display:flex;gap:12px;margin-bottom:12px}
 .basket{flex:1;padding:12px;border:1px solid #e6edf3;border-radius:8px;text-align:center}
