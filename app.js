@@ -214,6 +214,7 @@ function ensureLobbyControls(){
   const lobbyControls = document.getElementById('lobby-controls');
   if(!lobbyControls) return;
   lobbyControls.style.flexDirection = 'column'; // test
+  roleSelect.style.flexDirection = 'row';
 
   // coin count control
   const ccWrapper = document.createElement('div');
