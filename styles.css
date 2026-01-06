@@ -39,8 +39,8 @@ footer{margin-top:16px;color:var(--muted)}
   gap: 8px;
 }
 #createRoom {
-  width: 20px;  /* fixed width */
+  width: 40px;  /* fixed width */
   /* optional */
-  height: 10px;
-  font-size: 8px;
+  height: 20px;
+  font-size: 12px;
 }
