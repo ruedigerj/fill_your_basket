@@ -39,9 +39,9 @@ footer{margin-top:16px;color:var(--muted)}
   gap: 8px;
 }
 #createRoom {
-  width: 120px;  /* fixed width */
+  width: 150px;  /* fixed width */
   /* optional */
-  height: 20px;
+  height: 50px;
   font-size: 14px;
 }
 #auth-status {
