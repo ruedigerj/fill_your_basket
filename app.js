@@ -234,6 +234,7 @@ function ensureLobbyControls(){
   // compensation control
   const compWrapper = document.createElement('div');
   compWrapper.style.display = 'flex';
+  compWrapper.style.flexDirection = 'column'; // test
   compWrapper.style.gap = '8px';
   compWrapper.style.alignItems = 'center';
   compWrapper.innerHTML = `<label for="compSelect">Comp:</label>`;
