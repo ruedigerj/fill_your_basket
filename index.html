@@ -14,12 +14,14 @@
       <div id="auth-status">Signing in...</div>
 
       <div id="lobby-controls">
-        <label for="roleSelect">Choose role when creating:</label>
-        <select id="roleSelect">
-          <option value="presenter">Presenter (offer baskets)</option>
-          <option value="placer">Placer (put coins)</option>
-        </select>
-
+        <div class="role-select">
+          <label for="roleSelect">Choose role when creating:</label>
+          <select id="roleSelect">
+            <option value="presenter">Presenter (offer baskets)</option>
+            <option value="placer">Placer (put coins)</option>
+          </select>
+        </div>
+        
         <button id="createRoom">Create room</button>
 
         <div class="join">
