@@ -219,8 +219,8 @@ function ensureLobbyControls(){
   const ccWrapper = document.createElement('div');
   ccWrapper.style.display = 'flex';
   ccWrapper.style.gap = '8px';
-  ccWrapper.style.alignItems = 'center';
-  ccWrapper.innerHTML = `<label for="coinCountSelect">Coins:</label>`;
+  ccWrapper.style.alignItems = 'left';
+  ccWrapper.innerHTML = `<label for="coinCountSelect">Number of coins:</label>`;
   const select = document.createElement('select');
   select.id = 'coinCountSelect';
   for(let n=4;n<=10;n++){
@@ -236,8 +236,8 @@ function ensureLobbyControls(){
   const compWrapper = document.createElement('div');
   compWrapper.style.display = 'flex';
   compWrapper.style.gap = '8px';
-  compWrapper.style.alignItems = 'center';
-  compWrapper.innerHTML = `<label for="compSelect">Compens:</label>`;
+  compWrapper.style.alignItems = 'left';
+  compWrapper.innerHTML = `<label for="compSelect">Compensation:</label>`;
   const cselect = document.createElement('select');
   cselect.id = 'compSelect';
   for(let c=0;c<=10;c++){
@@ -253,7 +253,7 @@ function ensureLobbyControls(){
   const guestWrapper = document.createElement('div');
   guestWrapper.style.display = 'flex';
   guestWrapper.style.gap = '8px';
-  guestWrapper.style.alignItems = 'center';
+  guestWrapper.style.alignItems = 'left';
   guestWrapper.innerHTML = `<label for="guestSelect">Guest:</label>`;
   const gselect = document.createElement('select');
   gselect.id = 'guestSelect';
